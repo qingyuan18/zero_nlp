@@ -1,16 +1,16 @@
 # # 完整的训练流程
-# 1. 数据基于`https://github.com/hikariming/alpaca_chinese_dataset`
+# 1. 数据基于`https://github.com/hikariming//opt/ml/data/input/alpaca_chinese_dataset/`
 # 2. 部分代码来源于`https://github.com/27182812/ChatGLM-chinese-insturct/blob/main/finetune.py`
 # 3. 基于我之前修改的`model_chatglm.py`做的一整套教程
-# 
+#
 # ## 清洗数据
 
 # 在这里控制要使用的显卡
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 # 如果没有下载这个仓库，可以使用下面命令进行clone
 
-# !git clone https://github.com/hikariming/alpaca_chinese_dataset.git
+# !git clone https://github.com/hikariming//opt/ml/data/input/alpaca_chinese_dataset/.git
 
 
 ########################################################################################################################
@@ -25,11 +25,22 @@ import shutil
 from itertools import chain
 from tqdm import tqdm
 from pathlib import Path
+from thuglm.modeling_chatglm import ChatGLMForConditionalGeneration
+from transformers import Trainer
+from transformers import TrainingArguments
+import random
+from datasets import load_dataset
+from transformers import AutoTokenizer, AutoModel
+from peft import get_peft_model, LoraConfig, TaskType
+from typing import Optional
+import torch
+from MyTrainer import Trainer
+import json
 
-target_dir_list = ['alpaca_chinese_dataset/其他中文问题补充/',
-                   'alpaca_chinese_dataset/翻译后的中文数据/',
-                   'alpaca_chinese_dataset/chatglm问题数据补充/',
-                   #    'alpaca_chinese_dataset/原始英文数据/'
+
+target_dir_list = ['/opt/ml/data/input/alpaca_chinese_dataset/其他中文问题补充/',
+                   '/opt/ml/data/input/alpaca_chinese_dataset/翻译后的中文数据/',
+                   '/opt/ml/data/input/alpaca_chinese_dataset/chatglm问题数据补充/'
                    ]
 
 all_json_path = [glob(i + "*.json") for i in target_dir_list]
@@ -71,54 +82,44 @@ for index, start_id in tqdm(enumerate(range(0, alldata.shape[0], chunk_size))):
 
 
 
-from thuglm.modeling_chatglm import ChatGLMForConditionalGeneration
-from transformers import Trainer
-from transformers import TrainingArguments
-import random
-from datasets import load_dataset
-from transformers import AutoTokenizer, AutoModel
-from peft import get_peft_model, LoraConfig, TaskType
-from typing import Optional
-import torch
-from MyTrainer import Trainer
-
 tokenizer = AutoTokenizer.from_pretrained("thuglm", trust_remote_code=True)
 
-device_map_dict = {'transformer.word_embeddings': 0,
-                   'transformer.layers.0': 0,
-                   'transformer.layers.1': 0,
-                   'transformer.layers.2': 0,
-                   'transformer.layers.3': 0,
-                   'transformer.layers.4': 0,
-                   'transformer.layers.5': 0,
-                   'transformer.layers.6': 0,
-                   'transformer.layers.7': 0,
-                   'transformer.layers.8': 0,
-                   'transformer.layers.9': 0,
-                   'transformer.layers.10': 0,
-                   'transformer.layers.11': 0,
-                   'transformer.layers.12': 0,
-                   'transformer.layers.13': 0,
-                   'transformer.layers.14': 0,
-                   'transformer.layers.15': 1,
-                   'transformer.layers.16': 1,
-                   'transformer.layers.17': 1,
-                   'transformer.layers.18': 1,
-                   'transformer.layers.19': 1,
-                   'transformer.layers.20': 1,
-                   'transformer.layers.21': 1,
-                   'transformer.layers.22': 1,
-                   'transformer.layers.23': 1,
-                   'transformer.layers.24': 1,
-                   'transformer.layers.25': 1,
-                   'transformer.layers.26': 1,
-                   'transformer.layers.27': 1,
-                   'transformer.final_layernorm': 1,
-                   'lm_head': 1
-                   }
-
+device_map_dict = json.loads(os.environ['DEVICE_MAP_DICT'])
+#device_map_dict = {'transformer.word_embeddings': 0,
+#                   'transformer.layers.0': 0,
+#                   'transformer.layers.1': 0,
+#                   'transformer.layers.2': 0,
+#                   'transformer.layers.3': 0,
+#                   'transformer.layers.4': 0,
+#                   'transformer.layers.5': 0,
+#                   'transformer.layers.6': 0,
+#                   'transformer.layers.7': 0,
+#                   'transformer.layers.8': 0,
+#                   'transformer.layers.9': 0,
+#                   'transformer.layers.10': 0,
+#                   'transformer.layers.11': 0,
+#                   'transformer.layers.12': 0,
+#                   'transformer.layers.13': 0,
+#                   'transformer.layers.14': 0,
+#                   'transformer.layers.15': 1,
+#                   'transformer.layers.16': 1,
+#                   'transformer.layers.17': 1,
+#                   'transformer.layers.18': 1,
+#                   'transformer.layers.19': 1,
+#                   'transformer.layers.20': 1,
+#                   'transformer.layers.21': 1,
+#                   'transformer.layers.22': 1,
+#                   'transformer.layers.23': 1,
+#                   'transformer.layers.24': 1,
+#                   'transformer.layers.25': 1,
+#                   'transformer.layers.26': 1,
+#                   'transformer.layers.27': 1,
+#                   'transformer.final_layernorm': 1,
+#                   'lm_head': 1
+#                   }
+model_name_or_path = os.environ['MODEL_NAME_OR_PATH']
 model = AutoModel.from_pretrained(
-    "thuglm", trust_remote_code=True).half().cuda()
+    model_name_or_path, trust_remote_code=True).half().cuda()
 
 for k, v in device_map_dict.items():
     if k == 'transformer.word_embeddings':
@@ -288,19 +289,19 @@ tokenized_datasets = tokenized_datasets.map(function=preprocess)
 
 
 args = TrainingArguments(
-    output_dir="modellog0040101",
-    per_device_train_batch_size=4,  # 如果在24G显存上的显卡，可以开到4
-    per_device_eval_batch_size=2,
+    output_dir=os.environ['OUTPUT_DIR'],
+    per_device_train_batch_size=int(os.environ['PER_DEVICE_TRAIN_BATCH_SIZE']),  # 如果在24G显存上的显卡，可以开到4
+    per_device_eval_batch_size=int(os.environ['PER_DEVICE_EVAL_BATCH_SIZE']),
     evaluation_strategy="steps",
     eval_steps=20,
     logging_steps=20,
-    gradient_accumulation_steps=8,
-    num_train_epochs=1,
+    gradient_accumulation_steps=int(os.environ['GRADIENT_ACCMULATION_STEPS']),
+    num_train_epochs=int(os.environ['NUM_TRAIN_EPOCHS']),
     weight_decay=0.1,
     warmup_steps=1_000,
     lr_scheduler_type="cosine",
-    learning_rate=5e-4,
-    save_steps=20,
+    learning_rate=1e-6,
+    save_steps=int(os.environ['SAVE_STEPS']),
     fp16=True,
     push_to_hub=False,
     remove_unused_columns=False
@@ -318,3 +319,7 @@ trainer = Trainer(
     eval_dataset=tokenized_datasets["valid"],
 )
 trainer.train()
+#########save model#################
+save_model_dir = os.environ['OUTPUT_DIR']
+trainer.save_model(save_model_dir)
+print("------model is saved!-----")
