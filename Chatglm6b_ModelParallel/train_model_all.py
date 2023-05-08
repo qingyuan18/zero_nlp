@@ -42,10 +42,14 @@ target_dir_list = ['/opt/ml/input/data/alpaca_chinese_dataset/其他中文问题
                    '/opt/ml/input/data/alpaca_chinese_dataset/翻译后的中文数据/'
                    ]
 
+print("here1===")
+for child in os.listdir("/opt/ml/input/data/alpaca_chinese_dataset/"):
+    child_path = os.path.join(path, child)
+    print(child_path)
+
 all_json_path = [glob(i + "*.json") for i in target_dir_list]
 all_json_path = list(chain(*all_json_path))
 len(all_json_path), all_json_path[:5]
-print("here1===")
 print(all_json_path)
 
 def read_json(x: str):
