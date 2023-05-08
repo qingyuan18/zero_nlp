@@ -38,15 +38,15 @@ from MyTrainer import Trainer
 import json
 
 
-target_dir_list = ['/opt/ml/data/input/alpaca_chinese_dataset/其他中文问题补充/',
-                   '/opt/ml/data/input/alpaca_chinese_dataset/翻译后的中文数据/',
-                   '/opt/ml/data/input/alpaca_chinese_dataset/chatglm问题数据补充/'
+target_dir_list = ['/opt/ml/input/data/alpaca_chinese_dataset/其他中文问题补充/',
+                   '/opt/ml/input/data/alpaca_chinese_dataset/翻译后的中文数据/'
                    ]
 
 all_json_path = [glob(i + "*.json") for i in target_dir_list]
 all_json_path = list(chain(*all_json_path))
 len(all_json_path), all_json_path[:5]
-
+print("here1===")
+print(all_json_path)
 
 def read_json(x: str):
     try:
@@ -84,39 +84,39 @@ for index, start_id in tqdm(enumerate(range(0, alldata.shape[0], chunk_size))):
 
 tokenizer = AutoTokenizer.from_pretrained("thuglm", trust_remote_code=True)
 
-device_map_dict = json.loads(os.environ['DEVICE_MAP_DICT'])
-#device_map_dict = {'transformer.word_embeddings': 0,
-#                   'transformer.layers.0': 0,
-#                   'transformer.layers.1': 0,
-#                   'transformer.layers.2': 0,
-#                   'transformer.layers.3': 0,
-#                   'transformer.layers.4': 0,
-#                   'transformer.layers.5': 0,
-#                   'transformer.layers.6': 0,
-#                   'transformer.layers.7': 0,
-#                   'transformer.layers.8': 0,
-#                   'transformer.layers.9': 0,
-#                   'transformer.layers.10': 0,
-#                   'transformer.layers.11': 0,
-#                   'transformer.layers.12': 0,
-#                   'transformer.layers.13': 0,
-#                   'transformer.layers.14': 0,
-#                   'transformer.layers.15': 1,
-#                   'transformer.layers.16': 1,
-#                   'transformer.layers.17': 1,
-#                   'transformer.layers.18': 1,
-#                   'transformer.layers.19': 1,
-#                   'transformer.layers.20': 1,
-#                   'transformer.layers.21': 1,
-#                   'transformer.layers.22': 1,
-#                   'transformer.layers.23': 1,
-#                   'transformer.layers.24': 1,
-#                   'transformer.layers.25': 1,
-#                   'transformer.layers.26': 1,
-#                   'transformer.layers.27': 1,
-#                   'transformer.final_layernorm': 1,
-#                   'lm_head': 1
-#                   }
+#device_map_dict = json.loads(os.environ['DEVICE_MAP_DICT'])
+device_map_dict = {"transformer.word_embeddings": 0,
+                   "transformer.layers.0": 0,
+                   "transformer.layers.1": 0,
+                   "transformer.layers.2": 0,
+                   "transformer.layers.3": 0,
+                   "transformer.layers.4": 0,
+                   "transformer.layers.5": 0,
+                   "transformer.layers.6": 0,
+                   "transformer.layers.7": 1,
+                   "transformer.layers.8": 1,
+                   "transformer.layers.9": 1,
+                   "transformer.layers.10": 1,
+                   "transformer.layers.11": 1,
+                   "transformer.layers.12": 1,
+                   "transformer.layers.13": 1,
+                   "transformer.layers.14": 2,
+                   "transformer.layers.15": 2,
+                   "transformer.layers.16": 2,
+                   "transformer.layers.17": 2,
+                   "transformer.layers.18": 2,
+                   "transformer.layers.19": 2,
+                   "transformer.layers.20": 2,
+                   "transformer.layers.21": 3,
+                   "transformer.layers.22": 3,
+                   "transformer.layers.23": 3,
+                   "transformer.layers.24": 3,
+                   "transformer.layers.25": 3,
+                   "transformer.layers.26": 3,
+                   "transformer.layers.27": 3,
+                   "transformer.final_layernorm": 1,
+                   "lm_head": 1
+                   }
 model_name_or_path = os.environ['MODEL_NAME_OR_PATH']
 model = AutoModel.from_pretrained(
     model_name_or_path, trust_remote_code=True).half().cuda()
@@ -323,3 +323,5 @@ trainer.train()
 save_model_dir = os.environ['OUTPUT_DIR']
 trainer.save_model(save_model_dir)
 print("------model is saved!-----")
+print("------upload model to s3 path-----")
+os.system("./s5cmd sync {0} {1}".format(save_model_dir, os.environ['MODEL_OUTPUT_S3_PATH']))
